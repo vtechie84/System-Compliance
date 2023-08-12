@@ -1,0 +1,1060 @@
+####################################################################################################################################################
+#                                                                                                                                                  # 
+#                                                                                                                                                  #
+#  This Script is to check System Compliance as per Orginization policy                                                                            #
+#                                                                                                                                                  #
+#  Author: Vicky Kadam                                                                                                                             #
+#  Date: 31st Jan 2023                                                                                                                             #
+#  Version: 1.1                                                                                                                                    #
+#                                                                                                                                                  #
+#                                                                                                                                                  #
+####################################################################################################################################################
+
+
+#Load Assemblies
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Enable Visual Styles
+[System.Windows.Forms.Application]::EnableVisualStyles()
+
+############################################
+
+
+Function Get-Sysinfo{
+
+$Hostname = [System.Net.DNS]::GetHostByName($Null).HostName
+$Hostnamebox.Text = $Hostname
+
+
+$HostSerial = Get-WmiObject win32_bios | select -ExpandProperty Serialnumber  | Out-String 
+$Serialnumberbox.Text = $HostSerial
+
+$Mbox = Get-WMIObject –class Win32_ComputerSystem | Select -ExpandProperty Model | Out-String
+$Modelbox.Text = $Mbox
+
+$CPU = Get-WmiObject Win32_Processor -Property Name | Select -ExpandProperty Name | Out-String
+$Processor.Text = $CPU
+
+$CPUNum = Get-WmiObject –class Win32_processor -Property NumberOfCores  | select -ExpandProperty NumberOfCores |Out-String
+$LogicalP.Text = $CPUNum
+
+
+$Memory = [math]::round((Get-WmiObject –class Win32_computersystem -Property TotalPhysicalMemory |  Measure-Object -Property TotalPhysicalMemory -Sum).sum /1gb)
+$RAM.Text = $Memory
+
+
+$HDD1 = (Get-WmiObject -Class win32_logicaldisk | Format-Table DeviceId, @{n="Size";e={[math]::Round($_.Size/1GB,2)}},@{n="FreeSpace";e={[math]::Round($_.FreeSpace/1GB,2)}} |ft -AutoSize -HideTableHeaders|Out-File c:\windows\temp\disk.txt)
+$HDD2 = Get-Content -Path C:\Windows\Temp\disk.txt | Select -Index 3,4 |Out-String
+$HDD.Text = $HDD2
+
+
+$OSname = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption).Caption | Out-String
+$OS.Text = $OSname
+
+$OSV = (Get-CimInstance Win32_OperatingSystem | Select-Object Version).Version | Out-String
+$OSVersion.Text = $OSV
+
+$OSB = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").DisplayVersion |Out-String
+$OSBuild.Text = $OSB
+
+$InstallDate = (Get-CimInstance Win32_OperatingSystem | Select-Object InstallDate).InstallDate | Out-String
+$OSInstalledDate.Text = $InstallDate
+
+$Uptime = (Get-CimInstance -ClassName Win32_OperatingSystem | Select LastBootUpTime).LastBootUpTime | Out-String
+$OSuptime.Text = $Uptime
+}
+
+Function Get-AVinfo{
+
+$AgentV =  (Get-ItemProperty "HKLM:\SOFTWARE\Network Associates\TVD\Shared Components\Framework").Version | Out-String
+$AgentVersion.Text = $AgentV
+
+$Core = (Get-ItemProperty "HKLM:\SOFTWARE\McAfee\AVSolution\DS\DS").dwContentMajorVersion | Out-String
+$AmCore.Text= $Core
+
+$verDate = (Get-ItemProperty "HKLM:\SOFTWARE\McAfee\AVSolution\DS\DS").szContentCreationDate
+$VersionDate.Text= $verDate
+
+$DLPvr = (Get-ItemProperty "HKLM:\SOFTWARE\McAfee\DLP\Agent").AgentVersion | Out-String
+$DLPversion.Text = $DLPvr
+
+$DlPPolicyDate = (Get-ItemProperty "HKLM:SOFTWARE\McAfee\DLP\Agent\Properties\Policy").PolicyModificationDate |Out-String
+$DLPPolicy.Text = $DlPPolicyDate
+
+$RemovableStore = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\RemovableStorageDevices"
+If (Test-path $RemovableStore){$USB.Text = "Access Disabled"}Else{$USB.Text = "Access Allowed"}
+
+
+}
+
+
+
+function Get-log{
+
+#Clear-Content 'C:\ProgramData\McAfee\Endpoint Security\Logs\PackageManager_Activity.log'
+
+#Start-Process -FilePath “amcfg.exe" -ArgumentList '/update' -WorkingDirectory “C:\Program Files\McAfee\Endpoint Security\Threat Prevention” 
+
+#Start-Process -FilePath “cmdagent.exe" -ArgumentList '-e -p' -WorkingDirectory “C:\Program Files\McAfee\Agent” 
+
+    
+$log = Get-Content 'C:\ProgramData\McAfee\Endpoint Security\Logs\PackageManager_Activity.log'  |ForEach-Object {
+       $DATE,$TIME,$col3,$col4,$col5,$col6,$col7,$col8,$col9,$MESSAGE,$TOPIC,$null = $_ -split '\s+'
+        New-Object psobject -Property @{
+        
+        TIME = $TIME
+        DATE = $DATE
+        #Col3 = $col3
+        #Col4 = $col4
+        #Col5 = $col5
+        #Col6 = $col6
+        #Col7 = $col7
+        #Col8 = $col8
+        #Col9 = $col9
+        MESSAGE = $MESSAGE
+        TOPIC = $TOPIC
+        
+        
+        
+        } 
+      } | out-string
+
+
+      
+ $RichText.Text = $log
+ 
+
+ 
+}
+
+<# Function needs refinement do not enable it
+function Get-Coundown{
+
+
+
+         $delay = 10
+         while ($delay -ge 0){
+                  $CountDown.Text = "Will close in: $($delay)"
+                  timeout 10
+                  $delay -= 1
+                  }
+
+
+       
+
+                  
+
+} #>
+
+
+
+#Adding Main Form application
+
+$MainForm = New-Object System.Windows.Forms.Form
+$MainForm.FormBorderStyle = "Fixed3D"
+$MainForm.StartPosition = "CenterScreen" #loads the window in the center of the screen
+#$MainForm.Font = [System.Drawing.Font]::new("Microsoft Sans Serif",8, [System.Drawing.FontStyle]::Bold)
+$MainForm.Text = "System Compliance Check"
+$MainForm.AutoSize = $false
+$MainForm.AutoScale = $true
+$MainForm.ControlBox = $true
+$MainForm.MaximizeBox = $false
+$MainForm.MinimizeBox = $false
+#$MainForm.BackColor = "#00296D"
+$MainForm.BackColor = "#2E74B5" # Change Form Colour
+$MainForm.add_FormClosing({
+
+$_.Cancel=$true
+$MainForm.Hide()
+
+
+})
+
+
+$MainForm.Size = New-Object System.Drawing.Size(1530,550)
+$MainForm.WindowState = "Normal"
+$MainForm.SizeGripStyle = "Hide"
+$Icon = [system.drawing.icon]::ExtractAssociatedIcon($PSHOME + "\powershell.exe") # This can be changed as per requirement
+$MainForm.Icon = $Icon
+
+$CopyRight = New-Object System.Windows.Forms.Label
+$CopyRight.Font = [System.Drawing.Font]::new("Microsoft Sans Serif",8, [System.Drawing.FontStyle]::Bold)
+$CopyRight.Text = "CopyRight © VTechie.co.in" #Insert Copyright information
+$CopyRight.ForeColor = "White" #Change Font Colour
+#$CopyRight.Dock = "Bottom"
+$CopyRight.Location = New-Object System.Drawing.Size(1290,480)
+$CopyRight.AutoSize = $true
+
+$MainForm.Controls.Add($CopyRight)
+
+
+#Addning System Tray Icon with Menu
+
+$ContextMenu = New-Object System.Windows.Forms.ContextMenuStrip
+$MenuItem = $ContextMenu.Items.Add("Exit")
+$MenuItem1 = $ContextMenu.Items.Add("Open")
+
+$NotifyIcon = New-Object System.Windows.Forms.NotifyIcon
+$NotifyIcon.Icon = [system.drawing.icon]::ExtractAssociatedIcon($PSHOME + "\powershell.exe")
+$NotifyIcon.Text = "System Compliance Check"
+
+
+
+
+$NotifyIcon.Visible = $true
+
+$NotifyIcon.ContextMenuStrip = $ContextMenu
+
+$NotifyIcon.Add_Click({
+
+if ($_.Button -eq [Windows.Forms.MouseButtons]::Left) {
+    
+    $Mouse = [System.Windows.Forms.Cursor]::Position
+    $ContextMenu.Show($Mouse.x, $Mouse.y)
+    
+}
+
+})
+
+$MenuItem.add_Click({
+            $Mainform.close()
+            $NotifyIcon.Dispose()
+            $mainform.Dispose()
+            [Environment]::Exit(1)
+})
+
+$MenuItem1.add_Click({
+
+$MainForm.WindowState = "Normal"
+$MainForm.Visible = $true
+
+
+})
+
+############################################
+
+#Adding AV Update Form
+
+$AVBox = New-Object System.Windows.Forms.Form
+$AVBox.Size = New-Object System.Drawing.Size(950,600)
+$AVBox.StartPosition = "CenterScreen"
+$AVBox.FormBorderStyle = "Fixed3D"
+$AVBox.Icon = [system.drawing.icon]::ExtractAssociatedIcon($PSHOME + "\powershell.exe")
+$AVBox.AutoScale = $ture
+$AVBox.MinimizeBox = $false
+$AVBox.MaximizeBox = $false
+$AVBox.AutoSize = $false
+#$AVBox.BackColor = "#2E74B5"
+
+$RichText = New-object System.Windows.Forms.RichTextBox
+$RichText.Size = New-Object System.Drawing.Size(830, 400)
+$RichText.Location = New-Object System.Drawing.Size(30,100)
+#$RichText.Dock = "Fill"
+#$RichText.WordWrap = $true
+$RichText.SelectionTabs =  (100,200,300,400)
+$RichText.ScrollBars = "Vertical"
+$AVBox.Controls.Addrange(@($RichText))
+
+$ProgressBar1 = New-Object System.Windows.Forms.ProgressBar
+$ProgressBar1.Location = New-Object System.Drawing.Point(42, 42)
+$ProgressBar1.Size = New-Object System.Drawing.Size(830, 30)
+$ProgressBar1.Style = "Marquee"
+$ProgressBar1.MarqueeAnimationSpeed = 20
+$AVBox.Controls.Add($ProgressBar1)
+
+
+$StatusBox = New-Object System.Windows.Forms.GroupBox
+$StatusBox.Location = New-Object System.Drawing.Size(15,10)
+$StatusBox.Size = New-Object System.Drawing.Size(890,510)
+$StatusBox.Padding = New-Object System.Windows.Forms.Padding(20)
+#$StatusBox.BackColor = "#D7E7F5"
+#$GroupBox1.BackColor = "White"
+$StatusBox.Text = " Status: "
+$StatusBox.Controls.Addrange(@($RichText))
+
+############################################
+#Do not enable 
+
+<#$delay = 10
+$CountDown = New-Object System.Windows.Forms.Label
+$CountDown.Font = [System.Drawing.Font]::new("Microsoft Sans Serif",8, [System.Drawing.FontStyle]::Bold)
+#$CountDown.Text = "Will close in: $($delay)"
+$CountDown.ForeColor = "black"
+$CountDown.Dock = "Bottom"
+$CountDown.Location = New-Object System.Drawing.Size(550,480)
+$CountDown.AutoSize = $true
+#$CountDown.Visible = $true
+$AVBox.Controls.Add($CountDown)#>
+
+############################################
+
+#Adding Buttons
+
+$Button = New-Object System.Windows.Forms.Button
+$Button.Location = New-Object System.Drawing.Size(20,25)
+$Button.Size = New-Object System.Drawing.Size(200,70)
+$Button.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$Button.Text = "System Information"
+$Button.UseVisualStyleBackColor = $true
+$Button.TabIndex = 1
+#$Button.FlatStyle = [System.Windows.Forms.FlatStyle]::PopUp
+$Button.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+$Button.Padding = New-Object System.Windows.Forms.Padding(8)
+$Button.Cursor = [System.Windows.Forms.Cursors]::Hand
+$Button.BackColor = "White"
+$Button.Add_click({$GroupBox1.Controls.Clear();$Compliance.Controls.Clear(); Get-Sysinfo;$AVinfobox.Controls.Clear();$GroupBox1.Controls.AddRange(@($Hostnamebox,$HostLable,$Serialnumberbox, $SerialLable,$Modelbox,$ModelLable,$LogicalP,$LogicalPLable,$Processor,$ProcessorLable,$RAM,$RAMLable,$RAMLable,$HDD,$HDDLable,$OS,$OSLable,$OSVersion,$OSVersionLable,$OSInstalledDate,$InstalledDateLable,$OSBuild,$OSBuildLable,$OSuptime,$UptimeLable));$MainForm.Controls.Remove($Compliance);$MainForm.Controls.Add($GroupBox1)})
+
+
+$MainForm.Controls.Add($Button)
+
+$Button1 = New-Object System.Windows.Forms.Button
+$Button1.Location = New-Object System.Drawing.Size(20,112)
+$Button1.Size = New-Object System.Drawing.Size(200,70)
+$Button1.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$Button1.Text = "Antivirus Information"
+#$button1.FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
+$Button1.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+$Button1.Padding = New-Object System.Windows.Forms.Padding(8)
+$Button1.Cursor = [System.Windows.Forms.Cursors]::Hand
+$Button1.BackColor = "White"
+$Button1.Add_click({$GroupBox1.Controls.Clear();Get-AVinfo;$GroupBox1.Controls.AddRange(@($AgentVersion,$AgentLable,$AmCore,$AmCoreLable,$VersionDate,$VDateLable,$DLPPolicy,$DLPLabel,$DLPversion,$DLPVLable,$USB,$USBLable));$MainForm.Controls.Remove($Compliance);$MainForm.Controls.Add($GroupBox1)})
+
+
+$MainForm.Controls.Add($Button1)
+
+$Button2 = New-Object System.Windows.Forms.Button
+$Button2.Location = New-Object System.Drawing.Size(20,203)
+$Button2.Size = New-Object System.Drawing.Size(200,70)
+$Button2.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$Button2.Text = "My Compliance"
+#$button2.FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
+$Button2.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+$Button2.Padding = New-Object System.Windows.Forms.Padding(8)
+$Button2.Cursor = [System.Windows.Forms.Cursors]::Hand
+$Button2.BackColor = "White"
+$Button2.Add_click({$GroupBox1.Controls.Clear();$GroupBox1.Controls.AddRange(@($AgentVersion,$AgentLable,$AmCore,$AmCoreLable,$VersionDate,$VDateLable,$DLPPolicy,$DLPLabel,$DLPversion,$DLPVLable,$USB,$USBLable));$MainForm.Controls.Add($Compliance);$MainForm.Controls.Add($GroupBox1)})
+
+
+$MainForm.Controls.Add($Button2)
+
+$Button3 = New-Object System.Windows.Forms.Button
+$Button3.Location = New-Object System.Drawing.Size(20,292)
+$Button3.Size = New-Object System.Drawing.Size(200,70)
+$Button3.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$Button3.Text = "Notification"
+#$button3.FlatStyle = [System.Windows.Forms.FlatStyle]::Popup
+$Button3.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+$Button3.Padding = New-Object System.Windows.Forms.Padding(8)
+$Button3.Cursor = [System.Windows.Forms.Cursors]::Hand
+$Button3.BackColor = "White"
+$Button3.Add_click({$GroupBox1.Controls.Clear();$GroupBox1.Controls.Add($Notification);$MainForm.Controls.Remove($Compliance);$MainForm.Controls.Add($GroupBox1)})
+
+
+$MainForm.Controls.Add($Button3)
+
+$Button4 = New-Object System.Windows.Forms.Button
+$Button4.Location = New-Object System.Drawing.Size(20,380)
+$Button4.Size = New-Object System.Drawing.Size(200,70)
+$Button4.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+#$Button4.ForeColor = "White"
+$Button4.Text = "Click to Update Antivirus"
+$Button4.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+$Button4.Padding = New-Object System.Windows.Forms.Padding(8)
+#$Button4.BackColor = "#8AB8E2"
+$Button4.BackColor = "White"
+$Button4.ForeColor = "Black"
+
+$Button4.Add_click({
+      
+Clear-Content 'C:\ProgramData\McAfee\Endpoint Security\Logs\PackageManager_Activity.log'
+
+Start-Process -FilePath “amcfg.exe" -ArgumentList '/update' -WorkingDirectory “C:\Program Files\McAfee\Endpoint Security\Threat Prevention” 
+
+Start-Process -FilePath “cmdagent.exe" -ArgumentList '-p' -WorkingDirectory “C:\Program Files\McAfee\Agent”
+
+$AVtimer = New-Object System.Windows.Forms.Timer
+$AVtimer.Interval = 2000 # In milliseconds
+$AVtimer.add_tick({
+
+   
+  Get-log
+
+   if(Get-Content -path 'C:\ProgramData\McAfee\Endpoint Security\Logs\PackageManager_Activity.log' -Tail 1|foreach{if($_ -like "*Update finished*"){$_}}){
+
+           $AVtimer.stop()
+           $CountDown.Visible = $true
+          
+           #Get-Coundown  # Function not working do not enable it
+           Start-Process -FilePath “cmdagent.exe" -ArgumentList '-p' -WorkingDirectory “C:\Program Files\McAfee\Agent”
+           Start-Process -FilePath “cmdagent.exe" -ArgumentList '-e' -WorkingDirectory “C:\Program Files\McAfee\Agent”
+           $AVBox.Close() 
+      }elseif(Get-Content -path 'C:\ProgramData\McAfee\Endpoint Security\Logs\PackageManager_Activity.log' -Tail 1|foreach{if($_ -like  "*Update Failed*"){}}){
+    
+          $AVtimer.stop()
+          $CountDown.Visible = $true
+          
+           #Get-Coundown # Function not working do not enable it
+        
+           $AVBox.Close()
+     }
+  
+
+      
+
+   })
+
+        $AVtimer.Enabled = $true
+        $AVBox.Controls.Addrange(@($StatusBox))
+        $AVBox.ShowDialog()
+})
+
+$Button4.Cursor = [System.Windows.Forms.Cursors]::Hand
+$MainForm.Controls.Add($Button4)  
+
+
+#Adding GroupBox for buttons
+#$ButtonGroupBox = New-Object System.Windows.Forms.GroupBox
+#$ButtonGroupBox.Location = New-Object System.Drawing.Size(10,10)
+#$ButtonGroupBox.Size = New-Object System.Drawing.Size(220,450)
+#$ButtonGroupBox.Padding = New-Object System.Windows.Forms.Padding(10)
+#$ButtonGroupBox.BackColor = "#D7E7F5"
+#$ButtonGroupBox.BackColor = "White"
+
+$ButtonGroupBox = New-Object System.Windows.Forms.Panel
+$ButtonGroupBox.Location = New-Object System.Drawing.Size(10,10)
+$ButtonGroupBox.Size = New-Object System.Drawing.Size(220,450)
+$ButtonGroupBox.Padding = New-Object System.Windows.Forms.Padding(10)
+#$ButtonGroupBox.BorderStyle = "Fixed3D"
+#$ButtonGroupBox.BackColor = "#D7E7F5"
+#$ButtonGroupBox.BackColor = "White"
+
+
+
+
+$MainForm.Controls.Add($ButtonGroupBox)
+
+#Adding GroupBox for Output
+#$GroupBox1 = New-Object System.Windows.Forms.GroupBox
+#$GroupBox1.Location = New-Object System.Drawing.Size(245,10)
+#$GroupBox1.Size = New-Object System.Drawing.Size(1240,450)
+#$GroupBox1.Padding = New-Object System.Windows.Forms.Padding(10)
+#$GroupBox1.LayoutEngine
+#$GroupBox1.BackColor = "#D7E7F5"
+#$GroupBox1.BackColor = "White"
+#$GroupBox1.Text = " Status: "
+
+$GroupBox1 = New-Object System.Windows.Forms.Panel
+$GroupBox1.Location = New-Object System.Drawing.Size(245,10)
+$GroupBox1.Size = New-Object System.Drawing.Size(1240,450)
+$GroupBox1.Padding = New-Object System.Windows.Forms.Padding(20)
+$GroupBox1.BorderStyle = "Fixed3D"
+$GroupBox1.BackColor = "#D7E7F5"
+#$GroupBox1.BackColor = "White"
+$GroupBox1.Text = " Status: "
+
+
+
+
+#Adding GroupBox for Compliance Output
+$Compliance = New-Object System.Windows.Forms.DataGridView
+$Compliance.Location = New-Object System.Drawing.Size(245,10)
+
+$Compliance.ColumnHeadersDefaultCellStyle.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$Compliance.Height = 450
+$Compliance.Width = 1240
+#$Compliance.BackColor = "White"
+$Compliance.RowCount = 9
+$Compliance.ColumnCount = 3
+$Compliance.AutoSizeColumnsMode = "Fill"
+$Compliance.Columns[0].HeaderText = "Compliance Parameter"
+$Compliance.Columns[1].HeaderText = "Status"
+$Compliance.Columns[2].HeaderText = "Description"
+$Compliance.AllowUserToAddRows = $false
+$Compliance.Rows[0].ReadOnly = $true
+$Compliance.Rows[1].ReadOnly = $true
+$Compliance.Rows[2].ReadOnly = $true
+$Compliance.Rows[3].ReadOnly = $true
+$Compliance.Rows[4].ReadOnly = $true
+$Compliance.Rows[5].ReadOnly = $true
+$Compliance.Rows[6].ReadOnly = $true
+$Compliance.Rows[7].ReadOnly = $true
+$Compliance.Rows[0].Cells[0].Value = "Antivirus Agent"
+$Compliance.Rows[1].Cells[0].Value = "Amcore Version"
+$Compliance.Rows[2].Cells[0].Value = "DLP Agent"
+$Compliance.Rows[3].Cells[0].Value = "USB Access"
+$Compliance.Rows[4].Cells[0].Value = "Admin Rights"
+$Compliance.Rows[5].Cells[0].Value = "Drive Encription"
+$Compliance.Rows[6].Cells[0].Value = "SCCM"
+$Compliance.Rows[7].Cells[0].Value = "Windows Patches"
+
+
+
+
+$Bitlock = (New-Object -ComObject Shell.Application).NameSpace('C:').Self.ExtendedProperty('System.Volume.BitLockerProtection')
+$SCCM = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\SMS\Mobile Client").SmsClientVersion |Out-String
+
+if(Test-Path "HKLM:\SOFTWARE\Network Associates\TVD\Shared Components\Framework"){$Compliance.Rows[0].Cells[1].Value = "Compliant"}Else{$Compliance.Rows[0].Cells[1].Value = "Non-Compliant"}
+if(Test-Path "HKLM:\SOFTWARE\McAfee\DLP\Agent"){$Compliance.Rows[2].Cells[1].Value = "Compliant"}Else{$Compliance.Rows[2].Cells[1].Value = "Non-Compliant"}
+if(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\RemovableStorageDevices"){$Compliance.Rows[3].Cells[1].Value = "Disabled"}Else{$Compliance.Rows[3].Cells[1].Value = "Enabled"}
+if($Bitlock -eq 1 -or 3 -or 5){$Compliance.Rows[5].Cells[1].Value = "Compliant"}Else{$Compliance.Rows[5].Cells[1].Value = "Non-Compliant"}
+if(Test-Path "HKLM:\SOFTWARE\Microsoft\SMS\Mobile Client"){$Compliance.Rows[6].Cells[1].Value = "Compliant"}Else{$Compliance.Rows[6].Cells[1].Value = "Non-Compliant"}
+
+if(Test-Path "HKLM:\SOFTWARE\Network Associates\TVD\Shared Components\Framework"){$Compliance.Rows[0].Cells[2].Value = "McAfee Agent is installed"}Else{$Compliance.Rows[0].Cells[1].Value = "McAfee Agent is installed not installed"}
+#if(Test-Path "HKLM:\SOFTWARE\Network Associates\TVD\Shared Components\Framework"){$Compliance.Rows[0].Cells[2].Value = "Compliant"}Else{$Compliance.Rows[0].Cells[1].Value = "Non-Compliant"}
+if(Test-Path "HKLM:\SOFTWARE\McAfee\DLP\Agent"){$Compliance.Rows[2].Cells[2].Value = "DLP Agent is installed"}Else{$Compliance.Rows[2].Cells[1].Value = "DLP Agent not installed"}
+if(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\RemovableStorageDevices"){$Compliance.Rows[3].Cells[2].Value = "Access is Disabled"}Else{$Compliance.Rows[3].Cells[1].Value = "Access is Enabled"}
+if($Bitlock -eq 1 -or 3 -or 5){$Compliance.Rows[5].Cells[2].Value = "Workstation Drive are encrypted"}Else{
+
+     $Compliance.Rows[5].DefaultCellStyle.ForeColor = "Red"
+     $Compliance.Rows[5].Cells[2].Value = "Workstation Drive are not encrypted"
+}
+if(Test-Path "HKLM:\SOFTWARE\Microsoft\SMS\Mobile Client"){$Compliance.Rows[6].Cells[2].Value = "SCCM client version $SCCM is installed"}Else{
+   
+   $Compliance.Rows[6].DefaultCellStyle.ForeColor = "Red"
+   $Compliance.Rows[6].Cells[2].Value = "SCCM Client not installed"
+   
+}
+
+$UserName = whoami /all 2>$null
+$IsAdministrator = $false
+Foreach($line in $UserName){
+   if($line -like "*BUILTIN\Administrators*"){
+      $IsAdministrator = $true
+      break;
+   }
+      if($IsAdministrator -eq $true){$Compliance.Rows[4].Cells[1].Value = "Enabled"}Else{$Compliance.Rows[4].Cells[1].Value = "Disabled"}
+          if($IsAdministrator -eq $true){$Compliance.Rows[4].Cells[2].Value = "You have Admin rights on Workstation"}Else{$Compliance.Rows[4].Cells[2].Value = "You do not have Admin rights on workstation"}
+}
+
+
+
+Invoke-WebRequest "https://www.trellix.com/en-us/downloads/security-updates.html" | Select -ExpandProperty "Links" |Select-String -Pattern  "newco:download.nai.com:products:datfiles:v3dat:v3_" -list | Out-File c:\windows\temp\webDatVersion.txt
+$Readfile= Get-Content c:\windows\temp\webDatVersion.txt | select -Index 2
+$ReplaceContent= $Readfile.Replace("V3_", "").Replace("dat.exe","").Replace("href=", "").Replace('"https://download.nai.com/products/datfiles/V3DAT/', "").Replace("datalink-type=" ,"").Replace('"external"',"").Replace('"' ,"") 
+$RegReg = (Get-ItemProperty "HKLM:\SOFTWARE\McAfee\AVSolution\DS\DS").dwContentMajorVersion 
+
+$CheckFileContent = [String]::IsNullOrWhiteSpace((Get-content c:\windows\temp\webDatVersion.txt | select -Index 2))
+
+If($CheckFileContent -eq $false){
+
+if($RegReg -ieq "$ReplaceContent"){$Compliance.Rows[1].Cells[1].Value = "Compliant"}Else{$Compliance.Rows[1].Cells[1].Value = "Non-Compliant"}
+if($RegReg -ieq "$ReplaceContent"){$Compliance.Rows[1].Cells[2].Value = "McAfee ENS is updated"}Else{
+
+   $Compliance.Rows[1].DefaultCellStyle.ForeColor = "Red"
+   $Compliance.Rows[1].Cells[2].Value = "McAfee ENS not updated"
+
+}
+}Else{$Compliance.Rows[1].DefaultCellStyle.ForeColor = "Red"
+      $Compliance.Rows[1].Cells[1].Value = ""
+      $Compliance.Rows[1].Cells[2].Value = "Connection to Trelix website failed"}   
+       
+     
+
+
+if(Get-HotFix |?{$_.InstalledOn -gt ((Get-Date).AddDays(-30))} |Out-String){$Compliance.Rows[7].Cells[1].Value = "Compliant"}else{$Compliance.Rows[7].Cells[1].Value = "Non-Compliant"}
+if(Get-HotFix |?{$_.InstalledOn -gt ((Get-Date).AddDays(-30))} |Out-String){$Compliance.Rows[7].Cells[2].Value = "Windows Patch upto date"}else{
+  
+  $Compliance.Rows[7].DefaultCellStyle.ForeColor = "Red"
+  $Compliance.Rows[7].Cells[2].Value = "Windows Patch not upto date"
+}
+
+$Compliance1 = New-Object System.Windows.Forms.DataGridViewTextBoxColumn
+$Compliance1.Width = 410
+$Compliance1.HeaderText = "Compliance Paramater"
+$Compliance2 = New-Object System.Windows.Forms.DataGridViewTextBoxColumn
+$Compliance2.Width = 410
+$Compliance2.HeaderText = "Status"
+$Compliance3 = New-Object System.Windows.Forms.DataGridViewTextBoxColumn
+$Compliance3.Width = 410
+$Compliance3.HeaderText = "Description"
+$Compliance4 = New-Object System.Windows.Forms.DataGridViewTextBoxColumn
+$Compliance4.Width = 307
+
+
+
+
+
+#$Compliance.Columns.AddRange($Compliance1,$Compliance2,$Compliance3)#,$Compliance4)
+
+
+$MainForm.Controls.AddRange(@($Compliance))
+
+#Adding GroupBox for Hostname
+$Hostnamebox = New-Object System.Windows.Forms.TextBox
+$Hostnamebox.Location = New-Object System.Drawing.Size(290,30)
+$Hostnamebox.Size = New-Object System.Drawing.Size(300,50)
+$Hostnamebox.ReadOnly = $true
+$Hostnamebox.BackColor = "White"
+$Hostnamebox.WordWrap = $true
+$Hostnamebox.Font = "Lucida"
+$Hostnamebox.TextAlign = "left"
+$Hostnamebox.Multiline = $True
+
+#$form.Controls.Add($Hostnamebox)
+
+$HostLable = New-Object System.Windows.Forms.Label
+$HostLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$HostLable.Text = "HostName"
+$HostLable.AutoSize = $true
+$HostLable.Location = New-Object System.Drawing.Size(100,45)
+
+#$form.Controls.Add($HostLable)
+#############################################
+#Adding SerialNumber
+$Serialnumberbox = New-Object System.Windows.Forms.TextBox
+$Serialnumberbox.Location = New-Object System.Drawing.Size(890,30)
+$Serialnumberbox.Size = New-Object System.Drawing.Size(300,50)
+$Serialnumberbox.ReadOnly = $true
+$Serialnumberbox.BackColor = "White"
+$Serialnumberbox.WordWrap = $true
+$Serialnumberbox.Font = "Lucida"
+$Hostnamebox.TextAlign = "left"
+$Serialnumberbox.Multiline = $True
+
+#$form.Controls.Add($Serialnumberbox)
+
+$SerialLable = New-Object System.Windows.Forms.Label
+$SerialLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$SerialLable.Text = "Serial Number"
+$SerialLable.AutoSize = $true
+$SerialLable.Location = New-Object System.Drawing.Size(700,45)
+
+#$form.Controls.Add($SerialLable)
+
+#############################################
+
+#Adding Modelbox
+$Modelbox = New-Object System.Windows.Forms.TextBox
+$Modelbox.Location = New-Object System.Drawing.Size(290,115)
+$Modelbox.Size = New-Object System.Drawing.Size(300,50)
+$Modelbox.ReadOnly = $true
+$Modelbox.BackColor = "White"
+$Modelbox.WordWrap = $true
+$Modelbox.Font = "Lucida"
+$Modelbox.TextAlign = "left"
+$Modelbox.Multiline = $true
+
+#$form.Controls.Add($Modelbox)
+
+$ModelLable = New-Object System.Windows.Forms.Label
+$ModelLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$ModelLable.Text = "Model"
+$ModelLable.AutoSize = $true
+$ModelLable.Location = New-Object System.Drawing.Size(100,130)
+
+#$form.Controls.Add($ModelLable)
+##############################################
+#Adding Number of  Processors cores
+$LogicalP = New-Object System.Windows.Forms.TextBox
+$LogicalP.Location = New-Object System.Drawing.Size(890,115)
+$LogicalP.Size = New-Object System.Drawing.Size(300,50)
+$LogicalP.ReadOnly = $true
+$LogicalP.BackColor = "White"
+$LogicalP.WordWrap = $true
+$LogicalP.Font = "Lucida"
+$LogicalP.TextAlign = "left"
+$LogicalP.Multiline = $true
+
+#$form.Controls.Add($LogicalP)
+
+$LogicalPLable = New-Object System.Windows.Forms.Label
+$LogicalPLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$LogicalPLable.Text = "Processors Cores"
+$LogicalPLable.AutoSize = $true
+$LogicalPLable.Location = New-Object System.Drawing.Size(700,130)
+
+#$form.Controls.Add($LogicalPLable)
+###############################################
+#Adding Processor 
+$Processor = New-Object System.Windows.Forms.TextBox
+$Processor.Location = New-Object System.Drawing.Size(290,180)
+$Processor.Size = New-Object System.Drawing.Size(300,50)
+$Processor.ReadOnly = $true
+$Processor.BackColor = "White"
+$Processor.WordWrap = $true
+$Processor.Font = "Lucida"
+$Processor.TextAlign = "left"
+$Processor.Multiline = $true
+
+#$form.Controls.Add($Processor)
+
+$ProcessorLable = New-Object System.Windows.Forms.Label
+$ProcessorLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$ProcessorLable.Text = "Processor"
+$ProcessorLable.AutoSize = $true
+$ProcessorLable.Location = New-Object System.Drawing.Size(100,195)
+
+#$form.Controls.Add($ProcessorLable)
+
+###############################################
+#Adding RAM 
+$RAM = New-Object System.Windows.Forms.TextBox
+$RAM.Location = New-Object System.Drawing.Size(890,180)
+$RAM.Size = New-Object System.Drawing.Size(300,50)
+$RAM.ReadOnly = $true
+$RAM.BackColor = "White"
+$RAM.WordWrap = $true
+$RAM.Font = "Lucida"
+$RAM.TextAlign = "left"
+$RAM.Multiline = $true
+
+#$form.Controls.Add($RAM)
+
+$RAMLable = New-Object System.Windows.Forms.Label
+$RAMLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$RAMLable.Text = "RAM"
+$RAMLable.AutoSize = $true
+$RAMLable.Location = New-Object System.Drawing.Size(700,200)
+
+#$form.Controls.Add($RAMLable)
+
+###############################################
+#Adding Hard Disk
+$HDD = New-Object System.Windows.Forms.TextBox
+$HDD.Location = New-Object System.Drawing.Size(290,245)
+$HDD.Size = New-Object System.Drawing.Size(300,50)
+$HDD.ReadOnly = $true
+$HDD.BackColor = "White"
+$HDD.WordWrap = $true
+$HDD.Font = "Lucida"
+$HDD.TextAlign = "left"
+$HDD.Multiline = $true
+
+#$form.Controls.Add($HDD)
+
+$HDDLable = New-Object System.Windows.Forms.Label
+$HDDLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$HDDLable.Text = "HDD"
+$HDDLable.AutoSize = $true
+$HDDLable.Location = New-Object System.Drawing.Size(100,265)
+
+#$form.Controls.Add($HDDLable)
+
+###############################################
+#Adding Operating System
+$OS = New-Object System.Windows.Forms.TextBox
+$OS.Location = New-Object System.Drawing.Size(890,245)
+$OS.Size = New-Object System.Drawing.Size(300,50)
+$OS.ReadOnly = $true
+$OS.BackColor = "White"
+$OS.WordWrap = $true
+$OS.Font = "Lucida"
+$OS.TextAlign = "left"
+$OS.Multiline = $true
+
+#$form.Controls.Add($OS)
+
+$OSLable = New-Object System.Windows.Forms.Label
+$OSLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$OSLable.Text = "Operating System"
+$OSLable.AutoSize = $true
+$OSLable.Location = New-Object System.Drawing.Size(700,265)
+
+#$form.Controls.Add($OSLable)
+
+###############################################
+#Adding Operating System Version
+$OSVersion = New-Object System.Windows.Forms.TextBox
+$OSVersion.Location = New-Object System.Drawing.Size(290,310)
+$OSVersion.Size = New-Object System.Drawing.Size(300,50)
+$OSVersion.ReadOnly = $true
+$OSVersion.BackColor = "White"
+$OSVersion.WordWrap = $true
+$OSVersion.Font = "Lucida"
+$OSVersion.TextAlign = "left"
+$OSVersion.Multiline = $true
+
+#$form.Controls.Add($OSVersion)
+
+$OSVersionLable = New-Object System.Windows.Forms.Label
+$OSVersionLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$OSVersionLable.Text = "OS Version"
+$OSVersionLable.AutoSize = $true
+$OSVersionLable.Location = New-Object System.Drawing.Size(100,325)
+
+#$form.Controls.Add($OSVersionLable)
+
+###############################################
+#Adding Operating System Installation date
+$OSInstalledDate = New-Object System.Windows.Forms.TextBox
+
+$OSInstalledDate.Location = New-Object System.Drawing.Size(890,310)
+$OSInstalledDate.Size = New-Object System.Drawing.Size(300,50)
+$OSInstalledDate.ReadOnly = $true
+$OSInstalledDate.BackColor = "White"
+$OSInstalledDate.WordWrap = $true
+$OSInstalledDate.Font = "Lucida"
+$OSInstalledDate.TextAlign = "left"
+$OSInstalledDate.Multiline = $true
+
+#$form.Controls.Add($OSInstalledDate)
+
+$InstalledDateLable = New-Object System.Windows.Forms.Label
+$InstalledDateLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$InstalledDateLable.Text = "OS Install Date"
+$InstalledDateLable.AutoSize = $true
+$InstalledDateLable.Location = New-Object System.Drawing.Size(700,325)
+
+#$form.Controls.Add($InstalledDateLable)
+
+###############################################
+#Adding Operating System Build
+$OSBuild = New-Object System.Windows.Forms.TextBox
+$OSBuild.Location = New-Object System.Drawing.Size(290,375)
+$OSBuild.Size = New-Object System.Drawing.Size(300,50)
+$OSBuild.ReadOnly = $true
+$OSBuild.BackColor = "White"
+$OSBuild.WordWrap = $true
+$OSBuild.Font = "Lucida"
+$OSBuild.TextAlign = "left"
+$OSBuild.Multiline = $true
+
+#$form.Controls.Add($OSBuild)
+
+$OSBuildLable = New-Object System.Windows.Forms.Label
+$OSBuildLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$OSBuildLable.Text = "OS Build Number"
+$OSBuildLable.AutoSize = $true
+$OSBuildLable.Location = New-Object System.Drawing.Size(100,395)
+
+#$form.Controls.Add($OSBuildLable)
+
+###############################################
+#Adding System Uptime
+$OSuptime = New-Object System.Windows.Forms.TextBox
+$OSuptime.Location = New-Object System.Drawing.Size(890,375)
+$OSuptime.Size = New-Object System.Drawing.Size(300,50)
+$OSuptime.ReadOnly = $true
+$OSuptime.BackColor = "White"
+$OSuptime.WordWrap = $true
+$OSuptime.Font = "Lucida"
+$OSuptime.TextAlign = "left"
+$OSuptime.Multiline = $true
+
+#$form.Controls.Add($OSuptime)
+
+$UptimeLable = New-Object System.Windows.Forms.Label
+$UptimeLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$UptimeLable.Text = "System UpTime"
+$UptimeLable.AutoSize = $true
+$UptimeLable.Location = New-Object System.Drawing.Size(700,395)
+
+#$form.Controls.Add($UptimeLable)
+
+###################################
+
+#Adding GroupBox for Output
+$AVinfobox = New-Object System.Windows.Forms.GroupBox
+$AVinfobox.Location = New-Object System.Drawing.Size(250,20)
+$AVinfobox.Size = New-Object System.Drawing.Size(1230,425)
+$AVinfobox.Text = " AV Info: "
+#$AVinfobox.Controls.AddRange(@($AgentVersion,$AgentLable))#,$AmCore,$AmCoreLable,$VersionDate,$VDateLable,$DLPAgent,$DLPVLable,$USB,$USBLable))
+$AVinfobox.Controls.AddRange(@($AgentVersion,$AgentLable,$AmCore,$AmCoreLable,$VersionDate,$VDateLable,$DLPPolicy,$DLPLabel,$DLPversion,$DLPVLable,$USB,$USBLable))
+
+#$Form.Controls.Add($AVinfobox)
+
+
+#Adding GroupBox for Agent Version
+$AgentVersion = New-Object System.Windows.Forms.TextBox
+$AgentVersion.Location = New-Object System.Drawing.Size(290,50)
+$AgentVersion.Size = New-Object System.Drawing.Size(300,50)
+$AgentVersion.ReadOnly = $true
+$AgentVersion.BackColor = "White"
+$AgentVersion.WordWrap = $true
+$AgentVersion.Font = "Lucida"
+$AgentVersion.TextAlign = "left"
+$AgentVersion.Multiline = $true
+
+#$form.Controls.Add($AgentVersion)
+
+$AgentLable = New-Object System.Windows.Forms.Label
+$AgentLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$AgentLable.Text = "Agent Version"
+$AgentLable.AutoSize = $true
+$AgentLable.Location = New-Object System.Drawing.Size(100,70)
+
+#$form.Controls.Add($AgentLable)
+
+#############################################
+#Adding GroupBox for Amcore Version
+$AmCore = New-Object System.Windows.Forms.TextBox
+$AmCore.Location = New-Object System.Drawing.Size(900,50)
+$AmCore.Size = New-Object System.Drawing.Size(300,50)
+$AmCore.ReadOnly = $true
+$AmCore.BackColor = "White"
+$AmCore.WordWrap = $true
+
+$AmCore.Font = "Lucida"
+$AmCore.TextAlign = "left"
+$AmCore.Multiline = $true
+#$form.Controls.Add($AmCore)
+
+$AmCoreLable = New-Object System.Windows.Forms.Label
+$AmCoreLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$AmCoreLable.Text = "AmCore Version"
+$AmCoreLable.AutoSize = $true
+$AmCoreLable.Location = New-Object System.Drawing.Size(700,70)
+
+#$form.Controls.Add($AmCoreLable)
+
+#############################################
+#Adding AMCore Version Date
+$VersionDate = New-Object System.Windows.Forms.TextBox
+$VersionDate.Location = New-Object System.Drawing.Size(290,115)
+$VersionDate.Size = New-Object System.Drawing.Size(300,50)
+$VersionDate.ReadOnly = $true
+$VersionDate.BackColor = "White"
+$VersionDate.WordWrap = $true
+$VersionDate.Font = "Lucida"
+$VersionDate.TextAlign = "left"
+$VersionDate.Multiline = $true
+
+#$form.Controls.Add($VersionDate)
+
+$VDateLable = New-Object System.Windows.Forms.Label
+$VDateLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$VDateLable.Text = "Amcore Date"
+$VDateLable.AutoSize = $true
+$VDateLable.Location = New-Object System.Drawing.Size(100,130)
+
+#$form.Controls.Add($VDateLable)
+
+##############################################
+#Adding DLP Agent InStalled
+$DLPPolicy = New-Object System.Windows.Forms.TextBox
+$DLPPolicy.Location = New-Object System.Drawing.Size(900,115)
+$DLPPolicy.Size = New-Object System.Drawing.Size(300,50)
+$DLPPolicy.ReadOnly = $true
+$DLPPolicy.BackColor = "White"
+$DLPPolicy.WordWrap = $true
+$DLPPolicy.Font = "Lucida"
+$DLPPolicy.TextAlign = "left"
+$DLPPolicy.Multiline = $true
+
+#$form.Controls.Add($DLPAgent)
+
+$DLPLabel = New-Object System.Windows.Forms.Label
+$DLPLabel.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$DLPLabel.Text = "DLP Policy Last Modification"
+$DLPLabel.AutoSize = $true
+$DLPLabel.Location = New-Object System.Drawing.Size(700,135)
+
+#$form.Controls.Add($DLPLabel)
+
+###############################################
+#Adding DLP Agent Version 
+$DLPversion = New-Object System.Windows.Forms.TextBox
+$DLPversion.Location = New-Object System.Drawing.Size(290,185)
+$DLPversion.Size = New-Object System.Drawing.Size(300,50)
+$DLPversion.ReadOnly = $true
+$DLPversion.BackColor = "White"
+$DLPversion.WordWrap = $true
+$DLPversion.Font = "Lucida"
+$DLPversion.TextAlign = "left"
+$DLPversion.Multiline = $true
+
+#$form.Controls.Add($DLPversion)
+
+$DLPVLable = New-Object System.Windows.Forms.Label
+$DLPVLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$DLPVLable.Text = "DLP Version"
+$DLPVLable.AutoSize = $true
+$DLPVLable.Location = New-Object System.Drawing.Size(100,210)
+
+#$form.Controls.Add($DLPVLable)
+
+###############################################
+#Adding USB Access 
+$USB = New-Object System.Windows.Forms.TextBox
+$USB.Location = New-Object System.Drawing.Size(900,185)
+$USB.Size = New-Object System.Drawing.Size(300,50)
+$USB.ReadOnly = $true
+$USB.BackColor = "White"
+$USB.WordWrap = $true
+$USB.Font = "Lucida"
+$USB.TextAlign = "left"
+$USB.Multiline = $true
+
+#$form.Controls.Add($USB)
+
+$USBLable = New-Object System.Windows.Forms.Label
+$USBLable.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$USBLable.Text = "USB Access"
+$USBLable.AutoSize = $true
+$USBLable.Location = New-Object System.Drawing.Size(700,210)
+
+#$form.Controls.Add($USBLable)
+
+###############################################
+
+
+#Adding GroupBox for Password Expiry Output
+$PasswordExpiry = New-Object System.Windows.Forms.GroupBox
+$PasswordExpiry.Location = New-Object System.Drawing.Size(250,20)
+$PasswordExpiry.Size = New-Object System.Drawing.Size(1230,425)
+$PasswordExpiry.Text = " AV Info: "
+#$AVinfobox.Controls.AddRange(@($AgentVersion,$AgentLable))#,$AmCore,$AmCoreLable,$VersionDate,$VDateLable,$DLPAgent,$DLPVLable,$USB,$USBLable))
+
+######################################
+#Adding GroupBox for Notification Output
+$Notification = New-Object System.Windows.Forms.DataGridView
+#$Notification.Location = New-Object System.Drawing.Size(1,2)
+$Notification.Location = New-Object System.Drawing.Size(0,0)
+$Notification.Anchor = ("Top","Left")
+
+$Notification.ColumnHeadersDefaultCellStyle.Font = [System.Drawing.Font]::new("Microsoft Sans Serif", 8, [System.Drawing.FontStyle]::Bold)
+$Notification.Height = 450
+$Notification.Width = 1240
+$Notification.RowCount = 9
+$Notification.ColumnCount = 3
+$Notification.AutoSizeColumnsMode = "Fill"
+$Notification.Columns[0].HeaderText = "Notification Type"
+$Notification.Columns[1].HeaderText = "Notification"
+$Notification.Columns[2].HeaderText = "Date"
+$Notification.AllowUserToAddRows = $false
+$Notification.Rows[0].ReadOnly = $true
+$Notification.Rows[1].ReadOnly = $true
+$Notification.Rows[2].ReadOnly = $true
+$Notification.Rows[3].ReadOnly = $true
+$Notification.Rows[4].ReadOnly = $true
+$Notification.Rows[5].ReadOnly = $true
+$Notification.Rows[6].ReadOnly = $true
+$Notification.Rows[7].ReadOnly = $true
+
+$LastReboot = (get-date) - (Get-CimInstance Win32_Operatingsystem).LastBootUpTime | Select Days |Out-String
+#$LastReboot = (get-date) - (Get-CimInstance Win32_Operatingsystem).LastBootUpTime | Select Hour |Out-String
+
+
+
+$BootTime = (Get-CimInstance -ClassName Win32_OperatingSystem | Select LastBootUpTime).LastBootUpTime | Out-String
+
+if($LastReboot){$Notification.Rows[0].Cells[0].Value = "LastReboot"}else{""}
+if($LastReboot -le 1){$Notification.Rows[0].Cells[1].Value = "Your workstation uptime is more than 24hr. Please restart your Worstation."}else{$Notification.Rows[0].Cells[1].Value = ""}
+if($LastReboot -le 1){$Notification.Rows[0].Cells[2].Value = ($BootTime)}else{$Notification.Rows[0].Cells[2].Value = ""}
+
+
+if($LastReboot -le 1){
+
+$timer = New-Object System.Windows.Forms.Timer
+$timer.Interval = 3600000 # In milliseconds
+#timer.Interval = 15000 # In milliseconds
+$timer.add_tick({
+
+          $Popup = New-Object System.Windows.Forms.NotifyIcon
+          $Popup.Icon = [system.drawing.icon]::ExtractAssociatedIcon($PSHOME + "\powershell.exe")   
+          $Popup.BalloonTipIcon = "Info"
+          $Popup.BalloonTipTitle = "System Compliance Check"
+          $Popup.BalloonTipText = "Your workstation uptime is more than 24hr. Please restart your Worstation."
+          $Popup.Visible = $true
+          $Popup.ShowBalloonTip(1000)
+          $Popup.Visible = $true
+          $Popup.Dispose()
+  
+})
+$timer.Enabled = $true
+}
+$MainForm.ShowDialog()
+
+$appContext = New-Object System.Windows.Forms.ApplicationContext
+[void][System.Windows.Forms.Application]::Run($appContext)
